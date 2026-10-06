@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GeoGebra 3D - Kalkulator Grafik Tiga Dimensi Ringan</title>
+  <link rel="stylesheet" href="style.css">
+  
+  <!-- Font Tipografi -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Three.js CDN via Importmap Standar ES Modules -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <!-- Header Bar Gaya GeoGebra 3D -->
+  <header class="app-header">
+    <div class="brand-group">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="9"/>
+          <circle cx="9" cy="9" r="1.5" fill="currentColor"/>
+          <circle cx="15" cy="9" r="1.5" fill="currentColor"/>
+          <circle cx="12" cy="15" r="1.5" fill="currentColor"/>
+          <path d="M9 9l3 6 3-6"/>
+        </svg>
+      </div>
+      <div>
+        <h1>GeoGebra 3D <span class="badge">Ultra-Fast</span></h1>
+        <p class="subtitle">Kalkulator Grafik Tiga Dimensi Ringan & Responsif</p>
+      </div>
+    </div>
+
+    <!-- Pilihan Sudut Pandang Cepat -->
+    <div class="view-buttons">
+      <button id="btn-cam-iso" class="btn-subtle">3D Iso</button>
+      <button id="btn-cam-top" class="btn-subtle">XY (Atas)</button>
+      <button id="btn-cam-front" class="btn-subtle">XZ (Depan)</button>
+      <button id="btn-cam-side" class="btn-subtle">YZ (Samping)</button>
+      <button id="btn-reset-cam" class="btn-icon" title="Reset Kamera">↺</button>
+      <button id="btn-screenshot" class="btn-icon" title="Tangkapan Layar (PNG)">📷</button>
+    </div>
+  </header>
+
+  <!-- Wadah Kanvas Three.js Penuh -->
+  <div id="canvas-container"></div>
+
+  <!-- HUD Koordinat Kursor Hover -->
+  <div id="coord-hud" class="coord-hud hidden">
+    <div class="hud-title" id="hud-name">Titik Kursor</div>
+    <div class="hud-coords">
+      <span><strong class="col-x">X:</strong> <span id="hud-x">0.00</span></span>
+      <span><strong class="col-y">Y:</strong> <span id="hud-y">0.00</span></span>
+      <span><strong class="col-z">Z:</strong> <span id="hud-z">0.00</span></span>
+    </div>
+  </div>
+
+  <!-- Tombol Memunculkan UI di BAGIAN BAWAH (Agar Tidak Mudah Salah Tekan) -->
+  <div id="bottom-dock-trigger" class="bottom-dock-trigger">
+    <button id="btn-open-dock" class="btn-dock-main">
+      <span class="icon">📐</span>
+      <span>Atur Rumus & Objek</span>
+      <span id="dock-counter" class="dock-badge">3</span>
+      <span class="chevron">▲</span>
+    </button>
+    <button id="btn-quick-platonic" class="btn-dock-sub">🎲 Bangun 3D</button>
+    <button id="btn-toggle-keypad-dock" class="btn-dock-icon" title="Papan Ketik">⌨</button>
+  </div>
+
+  <!-- Panel Pengatur Rumus di Bawah (Slide-up Drawer) -->
+  <div id="bottom-dock" class="bottom-dock hidden">
+    <div class="dock-header">
+      <div class="dock-tabs">
+        <button id="tab-algebra" class="tab-btn active">📐 Aljabar & Rumus</button>
+        <button id="tab-solids" class="tab-btn">🎲 Bangun 3D Platonic</button>
+        <button id="tab-planes" class="tab-btn">▦ Bidang Datar</button>
+      </div>
+      <div class="dock-actions">
+        <button id="btn-clear-all" class="btn-text">Bersihkan Semua</button>
+        <button id="btn-close-dock" class="btn-close-dock">▼ Ciutkan</button>
+      </div>
+    </div>
+
+    <!-- Tab 1: Aljabar -->
+    <div id="pane-algebra" class="dock-pane">
+      <div class="input-bar-container">
+        <div class="input-wrapper">
+          <span class="plus-icon">+</span>
+          <input 
+            type="text" 
+            id="expression-input" 
+            placeholder="Masukkan rumus (misal: z = tan(x)*cos(y), a = 2, 2x + y - z = 2, Ikosahedron)..." 
+            autocomplete="off"
+          />
+          <button id="btn-submit-expr" class="btn-submit">Tambah</button>
+        </div>
+        <div class="quick-shortcuts">
+          <button class="chip" data-insert="z = tan(x) * cos(y)">+ z = tan(x)·cos(y)</button>
+          <button class="chip" data-insert="z = 0">+ Bidang z=0</button>
+          <button class="chip" data-insert="x + y + z = 1">+ Bidang x+y+z=1</button>
+          <button class="chip" data-insert="a = 2">+ Slider a</button>
+          <button class="chip" data-insert="Ikosahedron">+ Ikosahedron</button>
+          <button class="chip" data-insert="Kubus">+ Kubus</button>
+        </div>
+      </div>
+
+      <div id="items-list" class="items-list"></div>
+    </div>
+
+    <!-- Tab 2: Bangun 3D Platonic Solids -->
+    <div id="pane-solids" class="dock-pane hidden">
+      <div class="solids-grid">
+        <button class="solid-card" data-solid="tetrahedron"><span>🔺</span><strong>Tetrahedron</strong><small>4 Muka Segitiga</small></button>
+        <button class="solid-card" data-solid="cube"><span>🧊</span><strong>Kubus</strong><small>6 Muka Persegi</small></button>
+        <button class="solid-card" data-solid="octahedron"><span>💎</span><strong>Oktahedron</strong><small>8 Muka Segitiga</small></button>
+        <button class="solid-card" data-solid="dodecahedron"><span>🪐</span><strong>Dodekahedron</strong><small>12 Muka Pentagon</small></button>
+        <button class="solid-card" data-solid="icosahedron"><span>🔮</span><strong>Ikosahedron</strong><small>20 Muka Segitiga</small></button>
+        <button class="solid-card" data-solid="cylinder"><span>🛢️</span><strong>Silinder</strong><small>Tabung 3D</small></button>
+        <button class="solid-card" data-solid="torus"><span>🍩</span><strong>Torus</strong><small>Donat 3D</small></button>
+        <button class="solid-card" data-solid="pyramid"><span>⛺</span><strong>Piramida</strong><small>Limas Segiempat</small></button>
+      </div>
+    </div>
+
+    <!-- Tab 3: Bidang Datar -->
+    <div id="pane-planes" class="dock-pane hidden">
+      <div class="planes-grid">
+        <button class="plane-card" data-plane="z = 0"><strong>Bidang XY</strong><code>z = 0</code></button>
+        <button class="plane-card" data-plane="x = 0"><strong>Bidang YZ</strong><code>x = 0</code></button>
+        <button class="plane-card" data-plane="y = 0"><strong>Bidang XZ</strong><code>y = 0</code></button>
+        <button class="plane-card" data-plane="x + y + z = 1"><strong>Bidang Miring</strong><code>x+y+z=1</code></button>
+        <button class="plane-card" data-plane="2x + y - z = 2"><strong>Bidang Normal</strong><code>2x+y-z=2</code></button>
+        <button class="plane-card" data-plane="z = a"><strong>Bidang Geser Dinamis</strong><code>z = a</code></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Papan Ketik Virtual -->
+  <div id="virtual-keypad" class="virtual-keypad hidden">
+    <div class="keypad-header">
+      <span class="keypad-title">Papan Ketik Matematika</span>
+      <button id="btn-close-keypad" class="btn-text">✕ Tutup</button>
+    </div>
+    <div id="keypad-keys" class="keypad-keys"></div>
+  </div>
+
+  <script type="module" src="script.js"></script>
+</body>
+</html>
